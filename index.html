@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Water Monitoring System</title>
+    <title>Smart Monitoring System</title>
     <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
         body {
@@ -12,29 +12,47 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
             color: #333;
+            padding: 20px;
         }
         .container {
             background: rgba(255, 255, 255, 0.95);
-            padding: 40px;
+            padding: 30px;
             border-radius: 20px;
             box-shadow: 0 15px 35px rgba(0,0,0,0.3);
             text-align: center;
-            width: 350px;
+            width: 100%;
+            max-width: 400px;
         }
         h2 { margin-top: 0; color: #1e3c72; font-weight: 700; }
-        .data-box {
-            margin: 30px 0;
+        
+        /* Layout for DHT sensors */
+        .dht-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
         }
+        .dht-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 15px;
+            border: 1px solid #eee;
+        }
+        .dht-label { font-size: 0.8rem; color: #666; font-weight: bold; text-transform: uppercase; }
+        .dht-value { font-size: 1.5rem; font-weight: 700; color: #2c3e50; }
+
+        .data-box { margin: 20px 0; }
         .distance-value {
             font-size: 5rem;
             font-weight: 700;
             color: #2a5298;
             line-height: 1;
         }
-        .unit { font-size: 1.2rem; color: #666; margin-top: 5px; }
+        .unit { font-size: 1rem; color: #666; margin-top: 5px; }
+        
         .status-badge {
             padding: 12px 20px;
             border-radius: 10px;
@@ -46,7 +64,7 @@
             display: block;
             margin-bottom: 15px;
         }
-        /* Buzzer Button Style */
+
         .btn-buzzer {
             width: 100%;
             padding: 12px;
@@ -66,18 +84,16 @@
             border-color: #c0392b;
         }
 
-        /* Color Logic */
+        /* Status Colors */
         .status-ok { background-color: #2ecc71; }
         .status-warning { background-color: #f1c40f; color: #000; }
         .status-low { background-color: #e67e22; }
         .status-critical { background-color: #e74c3c; animation: blink 1s infinite; }
 
-        @keyframes blink {
-            50% { opacity: 0.7; }
-        }
+        @keyframes blink { 50% { opacity: 0.7; } }
 
         .info-footer {
-            margin-top: 30px;
+            margin-top: 25px;
             font-size: 0.8rem;
             color: #888;
             border-top: 1px solid #ddd;
@@ -89,10 +105,25 @@
 <body>
 
 <div class="container">
-    <h2>Water Level</h2>
-    <p style="color: #666;">HC-SR04 Sensor Monitoring</p>
+    <h2>Environment Monitor</h2>
+    
+    <div class="dht-grid">
+        <div class="dht-box">
+            <div class="dht-label">Temperature</div>
+            <div id="temp" class="dht-value">--</div>
+            <div class="unit">°C</div>
+        </div>
+        <div class="dht-box">
+            <div class="dht-label">Humidity</div>
+            <div id="humid" class="dht-value">--</div>
+            <div class="unit">%</div>
+        </div>
+    </div>
+
+    <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
 
     <div class="data-box">
+        <div class="dht-label" style="margin-bottom: 10px;">Water Distance</div>
         <div id="distance" class="distance-value">--</div>
         <div class="unit">Centimeters (cm)</div>
     </div>
@@ -123,10 +154,26 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+    
+    // References
     const dataRef = db.ref('/waterLevel/distanceCM');
-    const buzzerRef = db.ref('/waterLevel/buzzerStatus'); // New path for buzzer control
+    const tempRef = db.ref('/waterLevel/temperature');
+    const humidRef = db.ref('/waterLevel/humidity');
+    const buzzerRef = db.ref('/waterLevel/buzzerStatus');
 
     let currentBuzzerState = false;
+
+    // Listen for Temperature
+    tempRef.on('value', (snapshot) => {
+        const val = snapshot.val();
+        document.getElementById('temp').innerText = val !== null ? val.toFixed(1) : "--";
+    });
+
+    // Listen for Humidity
+    humidRef.on('value', (snapshot) => {
+        const val = snapshot.val();
+        document.getElementById('humid').innerText = val !== null ? Math.round(val) : "--";
+    });
 
     // Listen for Buzzer State
     buzzerRef.on('value', (snapshot) => {
@@ -141,11 +188,11 @@
         }
     });
 
-    // Toggle Function
     function toggleBuzzer() {
         buzzerRef.set(!currentBuzzerState);
     }
 
+    // Listen for Distance
     dataRef.on('value', (snapshot) => {
         const val = snapshot.val();
         const distEl = document.getElementById('distance');
